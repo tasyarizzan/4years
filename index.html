@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Our Story — Timeline Viewer</title>
+<style>
+  :root { --bg:#f3efe1; --ink:#2b2620; --accent:#8b6b4f; --soft:#d7ccb8; --slides-h: 520px; }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink)}
+  body{font-family:"Georgia","Garamond","Times New Roman",serif;line-height:1.45;overflow-x:hidden}
+  header{position:sticky;top:0;z-index:10;background:rgba(243,239,225,.95);backdrop-filter:blur(6px);
+         border-bottom:1px solid var(--soft);padding:16px 14px;display:flex;align-items:center;justify-content:center;gap:14px}
+  .timeline{width:min(900px,92vw);margin:20px auto 80px;position:relative}
+  .timeline::before{content:"";position:absolute;left:calc(50% - 1px);top:0;bottom:0;width:2px;background:linear-gradient(#a69076,#cdbfae);opacity:.45}
+  .card{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:24px 0;padding:14px;background:#fffdf7;border:1px solid var(--soft);
+        border-radius:14px;box-shadow:0 8px 30px rgba(139,107,79,.08);filter:sepia(12%) contrast(98%);align-items:start}
+  .gallery{position:relative;background:#fff;border:1px solid #e7dccb;border-radius:10px;overflow:hidden}
+  .slides{position:relative;height:var(--slides-h);display:flex;align-items:center;justify-content:center;background:#fff;pointer-events:auto}
+  .slide{display:none;width:100%;height:100%;object-fit:contain}
+  .slide.active{display:block}
+  .nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,250,242,.95);border:1px solid #c4b49d;border-radius:50%;width:34px;height:34px;cursor:pointer;z-index:2}
+  .nav.prev{left:8px} .nav.next{right:8px}
+  .thumbs{display:flex;gap:8px;margin-top:8px;overflow-x:auto;padding-bottom:4px}
+  .thumb{height:54px;border:1px solid #e7dccb;border-radius:6px;cursor:pointer;opacity:.85;background:#fff}
+  .thumb.selected{outline:2px solid #8b6b4f;opacity:1}
+  .text .meta{color:#6b5a47;font-size:14px}
+  .text .title{margin:6px 0 6px;font-size:22px}
+  .subtitle{margin:4px 0 10px;color:#4b4035}
+  @media(max-width:700px){ .card{grid-template-columns:1fr} .timeline::before{left:10px} :root{ --slides-h: 380px; } }
+</style>
+</head>
+<body>
+  <header>
+    <div style="background:#fffaf2;border:1px solid #c4b49d;border-radius:12px;padding:8px 12px;">
+      <strong>Our First Trip — Germany to Forever</strong>
+    </div>
+  </header>
+
+  <main class="timeline" id="timeline"><p style="text-align:center;color:#6b5a47;margin:40px 0">Loading…</p></main>
+
+  <script>
+    const timeline = document.getElementById('timeline');
+
+    function createCard(entry){
+      const imgs = entry.imgs || [];
+      const slides = imgs.map((src,i)=>`<img src="${src}" class="slide${i===0?' active':''}" alt="">`).join('');
+      const thumbs = imgs.map((src,i)=>`<img src="${src}" class="thumb${i===0?' selected':''}" data-index="${i}" alt="">`).join('');
+      const el = document.createElement('section');
+      el.className = 'card'; el.dataset.activeIndex = 0;
+      el.innerHTML = `
+        <div class="media">
+          <div class="gallery">
+            <button class="nav prev" aria-label="previous">‹</button>
+            <div class="slides">${slides}</div>
+            <button class="nav next" aria-label="next">›</button>
+          </div>
+          <div class="thumbs">${thumbs}</div>
+        </div>
+        <div class="text">
+          <div class="meta"><span class="date">${entry.date||''}</span></div>
+          <h3 class="title">${entry.title||''}</h3>
+          <p class="subtitle">${entry.subtitle||''}</p>
+        </div>`;
+      return el;
+    }
+
+    function setActive(card, idx){
+      const slides=[...card.querySelectorAll('.slide')];
+      const thumbs=[...card.querySelectorAll('.thumb')];
+      slides.forEach((s,i)=>s.classList.toggle('active', i===idx));
+      thumbs.forEach((t,i)=>t.classList.toggle('selected', i===idx));
+      card.dataset.activeIndex = idx;
+    }
+
+    function wireCard(card){
+      const prev=card.querySelector('.nav.prev'), next=card.querySelector('.nav.next');
+      const thumbs=[...card.querySelectorAll('.thumb')];
+      const n = card.querySelectorAll('.slide').length;
+      setActive(card, 0);
+      prev && prev.addEventListener('click', ()=>{ const i=(+card.dataset.activeIndex||0)-1; setActive(card,(i+n)%n); });
+      next && next.addEventListener('click', ()=>{ const i=(+card.dataset.activeIndex||0)+1; setActive(card,i%n); });
+      thumbs.forEach((t,i)=>t.addEventListener('click', ()=>setActive(card,i)));
+    }
+
+    function render(arr){
+      timeline.innerHTML = "";
+      arr.forEach(entry => { const c=createCard(entry); timeline.appendChild(c); wireCard(c); });
+      if(!arr.length){ timeline.innerHTML = '<p style="text-align:center;color:#6b5a47;margin:40px 0">Nothing to show.</p>'; }
+    }
+
+    async function load() {
+      try {
+        const res = await fetch('./data.json', { cache: 'no-store' }); // JSON в том же репо/папке
+        const arr = await res.json();
+        render(Array.isArray(arr) ? arr : []);
+      } catch (e) {
+        timeline.innerHTML = '<p style="text-align:center;color:#a65">Failed to load data.json</p>';
+        console.error(e);
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
